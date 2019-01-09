@@ -109,6 +109,8 @@ chrome.runtime.onMessage.addListener(
             chrome.tabs.sendMessage(mintTab, {shouldReload: true});
             console.log(sender);
             chrome.tabs.remove(sender.tab.id);
+        } else if (request.triggerEvent == "closeTab") {
+            chrome.tabs.remove(sender.tab.id);
         }
     }
 );
