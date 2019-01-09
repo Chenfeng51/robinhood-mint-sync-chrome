@@ -14,3 +14,15 @@ function waitForElement(selector, callback) {
         }, 100);
     }
 }
+
+function waitForElementUnload(selector, callback) {
+    if ($(selector).length !== 0) {
+        setTimeout(function() {
+            callback();
+        }, 100);
+    } else {
+        setTimeout(function() {
+            waitForElementUnload(selector, callback);
+        }, 100);
+    }
+}
