@@ -3,36 +3,80 @@
 
 displayOverlay("Syncing Mint and Robinhood...","This window will automatically close when the sync is complete");
 
-var urlParams = new URLSearchParams(window.location.search);
-
 $(document).ready(function() {
-    function setRobinhoodAmount() {
-        if (jQuery(".OtherPropertyView:contains(Robinhood Account)").length) {
-            console.log("Robinhood Mint Integration - Updating Robinhood Portfolio Value");
-            var accountTotal = urlParams.get("portfolioAmount");
+    $(`<script>
+        var urlParams = new URLSearchParams(window.location.search);
 
-            var robinhoodContainer = jQuery(".OtherPropertyView:contains(Robinhood Account)");
-            robinhoodContainer.find("span:contains(Robinhood Account)").click();
+        // Request providers from Mint
+        jQuery.ajax({
+        	url: "/mas/v1/providers",
+        	method: "GET",
+        	dataType: "json",
+        	beforeSend: function(xhr) {
+        		// Set the authorization header from Mint
+        		xhr.setRequestHeader("authorization", "Intuit_APIKey intuit_apikey=" + MintConfig.browserAuthAPIKey + ", intuit_apikey_version=1.0");
+            },
+        	success: function(response) {
+        		// Create an array to store potential Robinhood properties
+                var robinhoodAccountProperty = [];
 
-            var robinhoodInputs = robinhoodContainer.find("input");
+        		// Store Robinhood properties
+        		response.providers.forEach(function(provider, i) {
+        			if (provider.providerAccounts[0].name == "Robinhood Account") {
+        				robinhoodAccountProperty.push(provider);
+                    }
+                });
 
-            if (jQuery(robinhoodInputs[0]).val() == "Robinhood Account") {
-                jQuery(robinhoodInputs[1]).val(accountTotal);
-                jQuery("<script>jQuery('.saveButton').attr('disabled',false).click();</script>").appendTo("body");
-                closeWindow(robinhoodContainer);
+        		if (robinhoodAccountProperty.length < 1) {
+        			// If the Robinhood property is missing
+        			console.warn("Unable to find Robinhood account.");
+        			// Send error notice to Mint page
+        		} else if (robinhoodAccountProperty.length > 1) {
+        			// If there are too many Robinhood properties
+        			console.warn("Found multiple properties with correct name.");
+        			// Send error notice to Mint page
+        		} else {
+        			// Found Robinhood property, update it
+        			var links = robinhoodAccountProperty[0].metaData.link;
+
+        			// Build URL for property update
+        			var updateURL = "/mas";
+        			links.forEach(function(link, i) {
+        				// Find the link with update operation
+        				if (link.operation == "updateProvider") {
+        					updateURL += link.href;
+        				}
+        			});
+        			updateURL += "/accounts/" + robinhoodAccountProperty[0].providerAccounts[0].id;
+
+        			var updateData = {
+        				"name": "Robinhood Account",
+        				"value": urlParams.get("portfolioAmount").replace("$",""),
+        				"associatedLoanAccounts": [],
+        				"hasAssociatedLoanAccounts": false,
+        				"type": "OtherPropertyAccount"
+        			};
+
+        			console.log(updateURL);
+        			console.log(updateData);
+
+        			// Send update AJAX
+        			jQuery.ajax({
+        				url: updateURL,
+        				method: "PATCH",
+        				dataType: "json",
+            			contentType: "application/json; charset=utf-8",
+        				beforeSend: function(xhr) {
+        					// Set the authorization header from Mint
+        					xhr.setRequestHeader("authorization", "Intuit_APIKey intuit_apikey=" + MintConfig.browserAuthAPIKey + ", intuit_apikey_version=1.0");
+        			    },
+            			data: JSON.stringify(updateData),
+        				success: function(response) {
+
+        				}
+        			});
+        		}
             }
-        } else {
-            setTimeout(setRobinhoodAmount, 50);
-        }
-    }
-
-    function closeWindow() {
-        if ($(".AccountView.open").length) {
-            setTimeout(closeWindow, 50);
-        } else {
-            chrome.runtime.sendMessage({"triggerEvent": "syncComplete"});
-            window.close();
-        }
-    }
-    setRobinhoodAmount();
+        });
+        </script>`).appendTo("body");
 });
