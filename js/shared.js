@@ -16,7 +16,7 @@ function waitForElement(selector, callback) {
 }
 
 function waitForElementUnload(selector, callback) {
-    if ($(selector).length !== 0) {
+    if ($(selector).length == 0) {
         setTimeout(function() {
             callback();
         }, 100);
